@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Quiz App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 500px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.13);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #3a86ff;
+            letter-spacing: 2px;
+        }
+        
+        .question {
+            font-size: 1.25em;
+            margin-bottom: 18px;
+            color: #222;
+            min-height: 48px;
+            transition: color 0.3s;
+        }
+        
+        .answers {
+            margin-bottom: 18px;
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+        
+        .answers button {
+            flex: 1;
+            padding: 12px 0;
+            font-size: 1.1em;
+            border-radius: 8px;
+            border: none;
+            background: #e9e9e9;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+            box-shadow: 0 2px 8px rgba(58, 134, 255, 0.08);
+        }
+        
+        .answers button:hover:not(:disabled) {
+            background: #aee2ff;
+            transform: scale(1.05);
+        }
+        
+        .answers button:disabled {
+            background: #f1f1f1;
+            color: #aaa;
+            cursor: not-allowed;
+        }
+        
+        .counter {
+            font-weight: bold;
+            margin-bottom: 18px;
+            color: #ff006e;
+        }
+        
+        .result {
+            font-size: 1.15em;
+            margin-bottom: 18px;
+            min-height: 28px;
+            text-align: center;
+            transition: color 0.3s;
+        }
+        
+        .instructions {
+            background: #e7f3fe;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 22px;
+            color: #222;
+            font-size: 1em;
+        }
+        
+        #nextBtn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            border: none;
+            background: #3a86ff;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+            box-shadow: 0 2px 8px rgba(58, 134, 255, 0.08);
+        }
+        
+        #nextBtn:hover:not(:disabled) {
+            background: #4361ee;
+            transform: scale(1.03);
+        }
+        
+        #nextBtn:disabled {
+            background: #bdbdbd;
+            color: #eee;
+            cursor: not-allowed;
+        }
+        /* Confetti animation */
+        
+        .confetti {
+            position: absolute;
+            left: 50%;
+            top: 30%;
+            pointer-events: none;
+            z-index: 10;
+            width: 100%;
+            height: 0;
+        }
+        
+        .confetti-piece {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            opacity: 0.8;
+            animation: confetti-fall 1.2s linear forwards;
+        }
+        
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+            80% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(120px) scale(0.7);
+                opacity: 0;
+            }
+        }
+        /* Shake animation for incorrect */
+        
+        .shake {
+            animation: shake 0.5s;
+        }
+        
+        @keyframes shake {
+            0% {
+                transform: translateX(0);
+            }
+            20% {
+                transform: translateX(-8px);
+            }
+            40% {
+                transform: translateX(8px);
+            }
+            60% {
+                transform: translateX(-8px);
+            }
+            80% {
+                transform: translateX(8px);
+            }
+            100% {
+                transform: translateX(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Random Quiz App</h1>
+        <div class="instructions">
+            <strong>Instructions:</strong><br> - Select a category and click "Next Question" to fetch a random question.<br> - Select your answer.<br> - Incorrect answers are counted for this session.<br> - Refresh the page to reset the counter.<br>
+        </div>
+        <div style="margin-bottom:18px;">
+            <label for="categorySelect"><strong>Choose Category:</strong></label>
+            <select id="categorySelect" style="margin-left:10px; padding:6px; border-radius:6px;">
+                <option value="">Any</option>
+                <option value="21">Sports</option>
+                <option value="11">Movies</option>
+                <option value="9">General Knowledge</option>
+                <option value="31">Anime & Manga</option>
+                <option value="12">Music</option>
+                <option value="15">Video Games</option>
+            </select>
+        </div>
+        <div class="counter">Incorrect Answers: <span id="incorrectCount">0</span></div>
+        <div class="question" id="question">Click "Next Question" to start!</div>
+        <div class="answers" id="answers"></div>
+        <div class="result" id="result"></div>
+        <button id="nextBtn">Next Question</button>
+        <div class="confetti" id="confetti"></div>
+    </div>
+    <script>
+        let incorrectCount = 0;
+        let questionCount = 0;
+        const maxQuestions = 10;
+        const questionEl = document.getElementById('question');
+        const answersEl = document.getElementById('answers');
+        const resultEl = document.getElementById('result');
+        const incorrectCountEl = document.getElementById('incorrectCount');
+        const nextBtn = document.getElementById('nextBtn');
+        const confettiEl = document.getElementById('confetti');
+        const categorySelect = document.getElementById('categorySelect');
+        let correctAnswer = '';
+        let answered = false;
+        let seenQuestions = new Set();
+
+        function decodeHTML(html) {
+            var txt = document.createElement('textarea');
+            txt.innerHTML = html;
+            return txt.value;
+        }
+
+        async function fetchUniqueQuestion(tries = 0) {
+            if (questionCount >= maxQuestions) {
+                showSummary();
+                return;
+            }
+            questionEl.textContent = 'Loading...';
+            answersEl.innerHTML = '';
+            resultEl.textContent = '';
+            answered = false;
+            try {
+                let apiUrl = 'https://opentdb.com/api.php?amount=1&type=boolean';
+                const selectedCategory = categorySelect.value;
+                if (selectedCategory) {
+                    apiUrl += `&category=${selectedCategory}`;
+                }
+                const res = await fetch(apiUrl);
+                const data = await res.json();
+                if (data.results && data.results.length > 0) {
+                    const q = data.results[0];
+                    const questionText = decodeHTML(q.question);
+                    if (seenQuestions.has(questionText)) {
+                        // Try again, up to 10 times
+                        if (tries < 10) {
+                            fetchUniqueQuestion(tries + 1);
+                            return;
+                        } else {
+                            questionEl.textContent = 'No more unique questions found for this category. Try another category!';
+                            return;
+                        }
+                    }
+                    seenQuestions.add(questionText);
+                    correctAnswer = decodeHTML(q.correct_answer); // "True" or "False"
+                    questionEl.textContent = `Q${questionCount + 1}: ` + questionText;
+                    answersEl.innerHTML = '';
+
+                    const truthBtn = document.createElement('button');
+                    truthBtn.textContent = '✅ Truth';
+                    truthBtn.onclick = () => selectAnswer('True');
+                    answersEl.appendChild(truthBtn);
+
+                    const mythBtn = document.createElement('button');
+                    mythBtn.textContent = '❌ Myth';
+                    mythBtn.onclick = () => selectAnswer('False');
+                    answersEl.appendChild(mythBtn);
+                } else {
+                    // Try again, up to 10 times
+                    if (tries < 10) {
+                        fetchUniqueQuestion(tries + 1);
+                    } else {
+                        questionEl.textContent = 'No True/Myth questions available for this category. Please try another category!';
+                    }
+                }
+            } catch (e) {
+                questionEl.textContent = 'Error fetching question.';
+            }
+        }
+
+        function selectAnswer(ans) {
+            if (answered) return;
+            answered = true;
+            questionCount++;
+            if (ans === correctAnswer) {
+                resultEl.textContent = '🎉 Correct!';
+                resultEl.style.color = '#43aa8b';
+                showConfetti();
+            } else {
+                resultEl.textContent = `❌ Incorrect! Correct answer: ${correctAnswer === 'True' ? 'Truth' : 'Myth'}`;
+                resultEl.style.color = '#ff006e';
+                incorrectCount++;
+                incorrectCountEl.textContent = incorrectCount;
+                shakeAnimation(questionEl);
+                shakeAnimation(resultEl);
+            }
+            Array.from(answersEl.children).forEach(btn => btn.disabled = true);
+
+            if (questionCount >= maxQuestions) {
+                setTimeout(showSummary, 1200);
+            }
+        }
+
+        function showSummary() {
+            questionEl.textContent = 'Session Complete!';
+            answersEl.innerHTML = '';
+            resultEl.innerHTML = `<strong>You answered ${maxQuestions} questions.<br>Incorrect answers: ${incorrectCount}</strong>`;
+            nextBtn.disabled = true;
+        }
+
+        nextBtn.onclick = function() {
+            if (questionCount < maxQuestions) fetchUniqueQuestion();
+        };
+
+        // Reset session when category changes
+        categorySelect.onchange = function() {
+            incorrectCount = 0;
+            questionCount = 0;
+            seenQuestions.clear();
+            incorrectCountEl.textContent = incorrectCount;
+            questionEl.textContent = 'Click "Next Question" to start!';
+            answersEl.innerHTML = '';
+            resultEl.textContent = '';
+            nextBtn.disabled = false;
+            confettiEl.innerHTML = '';
+        };
+
+        function showConfetti() {
+            confettiEl.innerHTML = '';
+            for (let i = 0; i < 24; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.left = (Math.random() * 90) + '%';
+                piece.style.background = randomColor();
+                piece.style.animationDelay = (Math.random() * 0.5) + 's';
+                confettiEl.appendChild(piece);
+            }
+            setTimeout(() => {
+                confettiEl.innerHTML = '';
+            }, 1400);
+        }
+
+        function randomColor() {
+            const colors = ['#ffbe0b', '#fb5607', '#ff006e', '#8338ec', '#3a86ff', '#43aa8b', '#ffd60a'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function shakeAnimation(el) {
+            el.classList.add('shake');
+            setTimeout(() => el.classList.remove('shake'), 500);
+        }
+    </script>
+</body>
+
+</html>
